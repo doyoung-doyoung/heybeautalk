@@ -122,8 +122,11 @@ def beauty_ai_answer(message, profile, services):
         return None
     safe_message = re.sub(r"01[0-9][-\s]?\d{3,4}[-\s]?\d{4}", "[연락처 삭제]", message)
     safe_message = re.sub(r"((?:저는|이름은)\s*)[가-힣]{2,4}", r"\1[이름 삭제]", safe_message)
+    def catalog_price(item):
+        return f"฿{item['price']:,} THB" if item.get("currency") == "THB" else f"{item['price']:,} KRW"
+
     catalog = "; ".join(
-        f"{item['clinic_name']} / {item['name']} / {item['price']:,}원"
+        f"{item['clinic_name']} / {item['name']} / {catalog_price(item)}"
         for item in services
     )
     instructions = (
@@ -132,7 +135,8 @@ def beauty_ai_answer(message, profile, services):
         "진단·처방·효과 보장은 하지 말고, 임신·수유·질환·복용약 또는 개인 피부 상태는 "
         "의료진 상담이 필요하다고 안내하세요. 사용자가 특정 시술에 관심을 보이면 아래 실제 "
         "입점 클리닉 중 한 곳을 클리닉명·서비스명·가격·지역과 함께 소개하고, 예약 버튼을 "
-        "누르도록 자연스럽게 안내하세요. 가격·가능 시간은 임의로 만들지 마세요.\n\n"
+        "누르도록 자연스럽게 안내하세요. 서비스 카탈로그의 통화를 그대로 사용하고, 가격·가능 시간을 "
+        "임의로 만들지 마세요.\n\n"
         f"사용자 관심 시술: {profile.get('preferred_service') or '미확인'}\n"
         f"추천 가능한 실제 서비스: {catalog}"
     )
