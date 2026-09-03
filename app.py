@@ -401,16 +401,22 @@ def chat():
     profile = save_chat_profile(user_id, message)
     query = profile.get("preferred_service") or ""
     is_thai = bool(re.search(r"[ก-๙]", message))
+    lowered = message.lower()
+    clinic_intent = any(term in lowered for term in ("클리닉", "병원", "예약", "가까운", "คลินิก", "จอง", "ใกล้ฉัน"))
     if CLOUD_MODE:
         request_query = supabase.table("services").select("*, clinics(name,district)").eq("is_active", True)
-        if query: request_query = request_query.eq("category", query)
-        services = [flatten_service(item) for item in request_query.limit(3).execute().data]
+        if query and not clinic_intent: request_query = request_query.eq("category", query)
+        services = [flatten_service(item) for item in request_query.limit(20 if clinic_intent else 3).execute().data]
         if not services:
             services = [flatten_service(item) for item in supabase.table("services").select("*, clinics(name,district)").eq("is_active", True).limit(3).execute().data]
     else:
         connection = db()
-        services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
-          JOIN clinics c ON c.id=s.clinic_id WHERE s.category=? OR s.name LIKE ? LIMIT 3""", (query, f"%{query}%")))
+        if clinic_intent:
+            services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
+              JOIN clinics c ON c.id=s.clinic_id WHERE s.is_active=1 LIMIT 20"""))
+        else:
+            services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
+              JOIN clinics c ON c.id=s.clinic_id WHERE s.category=? OR s.name LIKE ? LIMIT 3""", (query, f"%{query}%")))
         if not services: services = rows(connection.execute("SELECT s.*, c.name clinic_name, c.district FROM services s JOIN clinics c ON c.id=s.clinic_id LIMIT 3"))
         connection.close()
         for service in services: service["slots"] = service_slots(service)
@@ -429,6 +435,7 @@ def chat():
         "services": services,
         "lead": lead,
         "info_step": info_step,
+        "clinic_intent": clinic_intent,
         "suggested_questions": suggested_questions(query, is_thai=is_thai, info_step=info_step),
     })
 

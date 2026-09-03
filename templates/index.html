@@ -9,27 +9,35 @@
     *{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Arial,"Malgun Gothic",sans-serif;color:var(--ink)}
     header{height:68px;background:#fff;display:flex;align-items:center;padding:0 max(22px,calc((100% - 1100px)/2));justify-content:space-between;border-bottom:1px solid var(--line)}
     .brand{font-size:23px;font-weight:800}.brand b{color:var(--pink)}a{color:inherit;text-decoration:none}.crm{border:1px solid var(--line);padding:9px 13px;border-radius:20px;font-size:14px}
-    main{max-width:1100px;margin:30px auto;display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:0 18px}.panel{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}
-    .hero{padding:30px;background:linear-gradient(135deg,#fff0f4,#f8f2ff)}h1{font-size:30px;margin:0 0 10px}p{line-height:1.55;color:var(--muted)}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
-    button{cursor:pointer;border:0}.chip{background:#fff;border:1px solid var(--line);border-radius:18px;padding:9px 12px}.chat{height:530px;display:flex;flex-direction:column}.messages{flex:1;overflow:auto;padding:18px}
+    main{max-width:1200px;margin:24px auto;display:grid;grid-template-columns:330px minmax(0,1fr);grid-template-areas:"guide chat" "guide matching";align-items:start;gap:20px;padding:0 18px}.panel{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}
+    .hero{grid-area:guide;padding:28px;background:linear-gradient(135deg,#fff0f4,#f8f2ff);min-height:720px}h1{font-size:28px;margin:0 0 10px}p{line-height:1.55;color:var(--muted)}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
+    button{cursor:pointer;border:0}.chip{background:#fff;border:1px solid var(--line);border-radius:18px;padding:9px 12px}.chat{grid-area:chat;height:650px;display:flex;flex-direction:column}.messages{flex:1;overflow:auto;padding:22px}
     .bubble{max-width:85%;padding:12px 14px;margin:8px 0;border-radius:14px;line-height:1.55;font-size:14px;white-space:pre-wrap}.me{background:#ffe1e9;margin-left:auto}.ai{background:#f5f3f8}.suggestions{display:grid;gap:7px;margin:2px 0 14px}.suggestion{text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--ink)}.suggestion:last-child{border-color:#ffabc0;background:#fff5f8;color:#b62f54;font-weight:700}
     .input{display:flex;padding:14px;border-top:1px solid var(--line);gap:8px}.input input{flex:1;border:1px solid var(--line);border-radius:22px;padding:12px}.send{background:var(--pink);color:#fff;border-radius:22px;padding:0 18px}
-    .privacy{display:block;padding:0 18px 12px;font-size:11px;color:var(--muted);line-height:1.45}.privacy input{vertical-align:middle}.cards{padding:18px}.service{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px}.service h3{margin:0 0 8px;font-size:16px}.meta{color:var(--muted);font-size:13px}.book{margin-top:11px;background:#fff0f4;color:#c83b60;border-radius:15px;padding:8px 12px}
-    dialog{border:0;border-radius:18px;box-shadow:0 14px 50px #4b2c3833}.form{width:min(360px,85vw);display:grid;gap:12px}.form h2{margin:0}.form label{font-size:13px}.form input,.form select{display:block;width:100%;border:1px solid var(--line);padding:10px;border-radius:9px;margin-top:5px}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:5px}.primary,.secondary{padding:10px 14px;border-radius:10px}.primary{background:var(--pink);color:#fff}.secondary{background:#f3f1f4}@media(max-width:720px){main{grid-template-columns:1fr;margin-top:18px}.chat{height:500px}}
+    .privacy{display:block;padding:0 18px 12px;font-size:11px;color:var(--muted);line-height:1.45}.privacy input{vertical-align:middle}.matching{grid-area:matching}.cards{padding:18px}.service{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px}.service h3{margin:0 0 8px;font-size:16px}.meta{color:var(--muted);font-size:13px}.book,.more{margin-top:11px;background:#fff0f4;color:#c83b60;border-radius:15px;padding:8px 12px}.more{width:100%;font-weight:700}.langs{display:flex;gap:5px}.lang{padding:7px 11px;border-radius:16px;background:#f6f2f4;color:var(--muted)}.lang.active{background:var(--pink);color:#fff}
+    dialog{border:0;border-radius:18px;box-shadow:0 14px 50px #4b2c3833}.form{width:min(360px,85vw);display:grid;gap:12px}.form h2{margin:0}.form label{font-size:13px}.form input,.form select{display:block;width:100%;border:1px solid var(--line);padding:10px;border-radius:9px;margin-top:5px}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:5px}.primary,.secondary{padding:10px 14px;border-radius:10px}.primary{background:var(--pink);color:#fff}.secondary{background:#f3f1f4}@media(max-width:760px){main{grid-template-columns:1fr;grid-template-areas:"chat" "guide" "matching";margin-top:16px}.chat{height:72vh;min-height:560px}.hero{min-height:auto}}
   </style>
 </head>
 <body>
-  <header><div class="brand">hey<b>beauty</b></div><a class="crm" href="/crm">클리닉 CRM 데모 →</a></header>
+  <header><div class="brand">hey<b>beauty</b></div><div class="langs"><button class="lang active" data-lang="th" onclick="setLanguage('th')">ไทย</button><button class="lang" data-lang="ko" onclick="setLanguage('ko')">한국어</button></div><a class="crm" id="crmLink" href="/crm">CRM คลินิก →</a></header>
   <main>
-    <section class="panel hero"><h1>방콕 피부 고민을<br>대화로 찾아보세요.</h1><p>AI가 뷰티 정보를 안내하고, 방콕 입점 클리닉의 가능한 예약 시간까지 연결해 드려요.</p><div class="chips"><button class="chip" onclick="send('사각턱 보톡스가 궁금해요')">사각턱 보톡스</button><button class="chip" onclick="send('ผิวแห้ง แนะนำอะไรดี')">ผิวแห้ง</button><button class="chip" onclick="send('색소 레이저를 알아보고 싶어요')">색소 레이저</button></div></section>
-    <section class="panel chat"><div class="messages" id="messages"><div class="bubble ai">안녕하세요, 헤이뷰티예요. 한국어 또는 태국어로 피부 고민과 시술에 관해 질문해 주세요.</div></div><div class="input"><input id="message" placeholder="예: โบท๊อกคืออะไร / 보톡스가 뭐예요?" autofocus><button class="send" onclick="send()">보내기</button></div><label class="privacy"><input id="aiConsent" type="checkbox" checked> AI 정보 답변 사용 (연락처와 이름은 전송 전에 제거됩니다)</label></section>
-    <section class="panel" style="grid-column:1/-1"><div class="cards"><strong>클리닉 매칭 에이전트 추천</strong><div id="services" class="empty" style="margin-top:12px">관심 시술을 알려주시면 입점 클리닉과 예약 시간을 연결해 드려요.</div></div></section>
+    <section class="panel hero"><h1 id="guideTitle">คู่มือคำถามความงาม</h1><p id="guideText">เลือกหัวข้อหรือถามได้อย่างอิสระ AI จะอธิบายข้อมูลความงามเป็นภาษาไทยหรือเกาหลี</p><div class="chips" id="guideChips"></div></section>
+    <section class="panel chat"><div class="messages" id="messages"><div class="bubble ai" id="welcome">สวัสดีค่ะ ถามเรื่องผิวและหัตถการความงามได้เลย</div></div><div class="input"><input id="message" placeholder="เช่น โบท๊อกคืออะไร" autofocus><button class="send" onclick="send()">ส่ง</button></div><label class="privacy"><input id="aiConsent" type="checkbox" checked> ใช้ AI ตอบข้อมูล (ระบบจะลบชื่อและเบอร์โทรศัพท์ก่อนส่ง)</label></section>
+    <section class="panel matching"><div class="cards"><strong id="matchingTitle">คลินิกแนะนำ</strong><div id="services" class="empty" style="margin-top:12px">เลือกคำถามค้นหาคลินิกเพื่อดูบริการและเวลาที่จองได้</div></div></section>
   </main>
-  <dialog id="booking"><form class="form" id="bookingForm"><h2 id="bookingTitle">예약 요청</h2><input type="hidden" id="serviceId"><label>예약자 이름<input id="name" required></label><label>연락처<input id="phone" placeholder="010-0000-0000" required></label><label>피부 고민<input id="concern"></label><label>예약 가능 시간<select id="slot" required></select></label><div class="actions"><button type="button" class="secondary" onclick="booking.close()">취소</button><button class="primary">예약 요청</button></div></form></dialog>
+  <dialog id="booking"><form class="form" id="bookingForm"><h2 id="bookingTitle">ส่งคำขอจอง</h2><input type="hidden" id="serviceId"><label><span id="nameLabel">ชื่อผู้จอง</span><input id="name" required></label><label><span id="phoneLabel">เบอร์โทรศัพท์</span><input id="phone" placeholder="08X-XXX-XXXX" required></label><label><span id="concernLabel">ปัญหาผิว</span><input id="concern"></label><label><span id="slotLabel">เวลาที่จองได้</span><select id="slot" required></select></label><div class="actions"><button type="button" class="secondary" id="cancelButton" onclick="booking.close()">ยกเลิก</button><button class="primary" id="bookingButton">ส่งคำขอจอง</button></div></form></dialog>
   <script>
     const userId='demo-'+(localStorage.hbUserId||(localStorage.hbUserId=Math.random().toString(36).slice(2)));
-    let current=[], infoStep=0;
+    let current=[], infoStep=0, locale='th', showAll=false;
     const $=id=>document.getElementById(id);
+    const copy={
+      th:{guideTitle:'คู่มือคำถามความงาม',guideText:'ถามได้ทุกเรื่องเกี่ยวกับความงาม หรือเลือกหัวข้อด้านล่างเพื่อเริ่มต้น',welcome:'สวัสดีค่ะ ถามเรื่องผิวและหัตถการความงามได้เลย',crm:'CRM คลินิก →',matching:'คลินิกแนะนำ',empty:'เลือกคำถามค้นหาคลินิกเพื่อดูบริการและเวลาที่จองได้',placeholder:'เช่น โบท๊อกคืออะไร',send:'ส่ง',privacy:'ใช้ AI ตอบข้อมูล (ระบบจะลบชื่อและเบอร์โทรศัพท์ก่อนส่ง)',book:'ดูเวลาจอง →',more:'ดูเพิ่มเติม',less:'แสดงน้อยลง',booking:'ส่งคำขอจอง',name:'ชื่อผู้จอง',phone:'เบอร์โทรศัพท์',concern:'ปัญหาผิว',slot:'เวลาที่จองได้',cancel:'ยกเลิก',success:'ส่งคำขอจองเรียบร้อยแล้ว คลินิกจะติดต่อกลับหลังตรวจสอบ',chips:[['โบท็อกซ์','โบท๊อกคืออะไร'],['ฟิลเลอร์','ฟิลเลอร์คืออะไร'],['ยกกระชับ','การยกกระชับมีกี่แบบ'],['เลเซอร์','เลเซอร์ช่วยเรื่องอะไร'],['สกินบูสเตอร์','สกินบูสเตอร์คืออะไร'],['ริ้วรอย','ลดริ้วรอยอย่างไร'],['สิว','รักษารอยสิวอย่างไร'],['ฝ้า กระ','เลเซอร์ฝ้า กระ'],['ผิวแห้ง','ผิวแห้งควรทำอะไร'],['รูปหน้า','ปรับรูปหน้าแบบไหนดี'],['รูขุมขน','ดูแลรูขุมขนอย่างไร'],['ผิวกระจ่างใส','ทำอย่างไรให้ผิวกระจ่างใส']]},
+      ko:{guideTitle:'뷰티 질문 가이드',guideText:'뷰티에 관해 자유롭게 질문하거나 아래 주제를 선택해 시작해 보세요.',welcome:'안녕하세요. 피부 고민과 뷰티 시술에 관해 자유롭게 질문해 주세요.',crm:'클리닉 CRM →',matching:'클리닉 매칭 추천',empty:'클리닉 찾기 질문을 선택하면 서비스와 예약 가능 시간을 보여드려요.',placeholder:'예: 보톡스가 뭐예요?',send:'보내기',privacy:'AI 정보 답변 사용 (이름과 연락처는 전송 전에 제거됩니다)',book:'예약 시간 보기 →',more:'더보기',less:'접기',booking:'예약 요청',name:'예약자 이름',phone:'연락처',concern:'피부 고민',slot:'예약 가능 시간',cancel:'취소',success:'예약 요청이 접수되었습니다. 클리닉 확인 후 연락드립니다.',chips:[['보톡스','보톡스가 뭐예요?'],['필러','필러는 어떤 시술인가요?'],['리프팅','리프팅 종류가 궁금해요'],['레이저','레이저는 무엇에 도움이 되나요?'],['스킨부스터','스킨부스터가 뭐예요?'],['주름','주름 개선 방법이 궁금해요'],['여드름','여드름 흉터를 어떻게 관리하나요?'],['색소','색소 레이저가 궁금해요'],['건조 피부','건조한 피부에는 무엇이 좋나요?'],['얼굴형','얼굴형 개선 시술이 궁금해요'],['모공','모공 관리는 어떻게 하나요?'],['피부 톤','피부 톤을 밝게 관리하려면?']]}
+    };
+    function setLanguage(lang){
+      locale=lang;const t=copy[lang];document.documentElement.lang=lang;$('guideTitle').textContent=t.guideTitle;$('guideText').textContent=t.guideText;$('welcome').textContent=t.welcome;$('crmLink').textContent=t.crm;$('matchingTitle').textContent=t.matching;$('message').placeholder=t.placeholder;document.querySelector('.send').textContent=t.send;document.querySelector('.privacy').lastChild.textContent=' '+t.privacy;$('bookingTitle').textContent=t.booking;$('nameLabel').textContent=t.name;$('phoneLabel').textContent=t.phone;$('concernLabel').textContent=t.concern;$('slotLabel').textContent=t.slot;$('cancelButton').textContent=t.cancel;$('bookingButton').textContent=t.booking;document.querySelectorAll('.lang').forEach(b=>b.classList.toggle('active',b.dataset.lang===lang));
+      $('guideChips').innerHTML='';t.chips.forEach(([label,q])=>{const b=document.createElement('button');b.className='chip';b.textContent=label;b.onclick=()=>send(q);$('guideChips').appendChild(b)});if(!current.length)$('services').textContent=t.empty;else render(current);
+    }
     function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
     function add(text,type){$('messages').insertAdjacentHTML('beforeend',`<div class="bubble ${type}">${esc(text)}</div>`);$('messages').scrollTop=99999}
     function addSuggestions(items){
@@ -38,21 +46,32 @@
       items.forEach((q,i)=>{const b=document.createElement('button');b.className='suggestion';b.textContent=`${i+1}. ${q}`;b.onclick=()=>send(q);wrap.appendChild(b)});
       $('messages').appendChild(wrap);$('messages').scrollTop=99999;
     }
+    async function chatRequest(payload){
+      let lastError;
+      for(const url of ['/chat','/api/chat']){
+        try{
+          const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+          const d=await r.json().catch(()=>({}));
+          if(!r.ok)throw new Error(d.error||`Request error (${r.status})`);
+          return d;
+        }catch(e){lastError=e}
+      }
+      throw lastError;
+    }
     async function send(text){
       const input=$('message');text=text||input.value.trim();if(!text)return;
       add(text,'me');input.value='';infoStep=Math.min(infoStep+1,3);
       try{
-        const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,user_id:userId,allow_ai:$('aiConsent').checked,info_step:infoStep})});
-        const d=await r.json().catch(()=>({}));
-        if(!r.ok)throw new Error(d.error||`요청 오류 (${r.status})`);
-        add(d.reply,'ai');addSuggestions(d.suggested_questions);['name','phone','concern'].forEach(k=>{if(d.profile[k])$(k).value=d.profile[k]});current=d.services;render(d.services);
-      }catch(e){add(e.message||'채팅 연결에 실패했어요. 다시 시도해 주세요.','ai')}
+        const d=await chatRequest({message:text,user_id:userId,allow_ai:$('aiConsent').checked,info_step:infoStep});
+        add(d.reply,'ai');addSuggestions(d.suggested_questions);['name','phone','concern'].forEach(k=>{if(d.profile[k])$(k).value=d.profile[k]});current=d.services;showAll=false;render(d.services);
+      }catch(e){add(locale==='th'?'เชื่อมต่อแชตไม่สำเร็จ กรุณาลองอีกครั้ง':'채팅 연결에 실패했습니다. 다시 시도해 주세요.','ai')}
     }
     function money(service){return new Intl.NumberFormat('th-TH',{style:'currency',currency:service.currency||'THB',maximumFractionDigits:0}).format(service.price)}
-    function render(items){$('services').innerHTML=items.map((s,i)=>`<div class="service"><h3>${esc(s.clinic_name)} · ${esc(s.name)}</h3><div class="meta">${esc(s.district)} · ${s.category} · ${money(s)} · ${s.duration}</div><button class="book" onclick="openBooking(${i})">예약 시간 보기 →</button></div>`).join('')}
-    function openBooking(i){const s=current[i];$('serviceId').value=s.id;$('bookingTitle').textContent=s.clinic_name+' 예약 요청';$('slot').innerHTML=s.slots.map(x=>`<option>${x}</option>`).join('');booking.showModal()}
-    $('bookingForm').onsubmit=async e=>{e.preventDefault();const data={service_id:+$('serviceId').value,slot:$('slot').value,name:$('name').value,phone:$('phone').value,concern:$('concern').value};const r=await fetch('/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const d=await r.json().catch(()=>({}));if(!r.ok)return alert(d.error||`예약 요청 오류 (${r.status})`);booking.close();add('✅ '+d.message,'ai')};
+    function render(items){const t=copy[locale],visible=showAll?items:items.slice(0,5);$('services').innerHTML=visible.map((s,i)=>`<div class="service"><h3>${esc(s.clinic_name)} · ${esc(s.name)}</h3><div class="meta">${esc(s.district)} · ${esc(s.category)} · ${money(s)} · ${esc(s.duration)}</div><button class="book" onclick="openBooking(${i})">${t.book}</button></div>`).join('')+(items.length>5?`<button class="more" onclick="showAll=!showAll;render(current)">${showAll?t.less:`${t.more} (${items.length-5})`}</button>`:'')}
+    function openBooking(i){const s=current[i];$('serviceId').value=s.id;$('bookingTitle').textContent=s.clinic_name+' · '+copy[locale].booking;$('slot').innerHTML=s.slots.map(x=>`<option>${x}</option>`).join('');booking.showModal()}
+    $('bookingForm').onsubmit=async e=>{e.preventDefault();const data={service_id:+$('serviceId').value,slot:$('slot').value,name:$('name').value,phone:$('phone').value,concern:$('concern').value};const r=await fetch('/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const d=await r.json().catch(()=>({}));if(!r.ok)return alert(d.error||`Request error (${r.status})`);booking.close();add('✅ '+copy[locale].success,'ai')};
     $('message').onkeydown=e=>{if(e.key==='Enter')send()};
+    setLanguage('th');
   </script>
 </body>
 </html>
