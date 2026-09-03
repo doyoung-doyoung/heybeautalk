@@ -145,6 +145,17 @@ def home():
     return render_template("index.html")
 
 
+@app.get("/api/health")
+def health():
+    return jsonify({
+        "ok": True,
+        "cloud_mode": CLOUD_MODE,
+        "supabase_url_configured": bool(SUPABASE_URL),
+        "supabase_service_key_configured": bool(SUPABASE_SERVICE_ROLE_KEY),
+        "supabase_anon_key_configured": bool(SUPABASE_ANON_KEY),
+    })
+
+
 @app.get("/crm")
 def crm():
     return render_template("crm.html")
