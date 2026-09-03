@@ -111,6 +111,7 @@ def flatten_service(service, include_rating=False):
     service["district"] = clinic.get("district", "")
     if include_rating:
         service["rating"] = clinic.get("rating")
+    service["currency"] = service.get("currency", "THB")
     service["slots"] = service_slots(service)
     return service
 
@@ -153,9 +154,16 @@ def clinic_match_reply(category, services):
             "관심 있는 시술이나 고민을 알려주시면 입점 클리닉과 예약 시간을 바로 연결해 드려요."
         )
     match = services[0]
+    price = f"฿{match['price']:,}" if match.get("currency") == "THB" else f"{match['price']:,}원"
+    if re.search(r"[ก-๙]", category):
+        return (
+            f"คุณสนใจ {category} ใช่ไหม? {match['district']}의 {match['clinic_name']}에서 "
+            f"‘{match['name']}’ 서비스를 {price}에 안내하고 있어요. 아래 예약 버튼을 눌러 "
+            "가능한 시간을 확인하고 예약 요청을 진행할 수 있어요."
+        )
     return (
         f"{category}에 관심이 있으시군요. {match['district']}의 {match['clinic_name']}에서 "
-        f"‘{match['name']}’ 서비스를 {match['price']:,}원에 안내하고 있어요. "
+        f"‘{match['name']}’ 서비스를 {price}에 안내하고 있어요. "
         f"아래 ‘예약 시간 보기’를 누르면 가능한 시간을 확인하고 바로 예약 요청할 수 있어요. "
         "시술 전에는 의료진과 피부 상태·부작용을 꼭 상담해 주세요."
     )
@@ -175,7 +183,7 @@ def save_chat_profile(user_id, message):
         profile["phone"] = re.sub(r"\s", "", phone.group())
     if name:
         profile["name"] = name.group(1)
-    categories = {"보톡스": ["보톡스", "사각턱", "주름"], "필러": ["필러", "입술", "볼륨"], "리프팅": ["리프팅", "슈링크", "처짐"], "스킨부스터": ["스킨부스터", "물광", "건조"], "레이저": ["레이저", "피코", "색소", "흉터", "여드름"]}
+    categories = {"보톡스": ["보톡스", "사각턱", "주름", "โบท็อกซ์"], "필러": ["필러", "입술", "볼륨", "ฟิลเลอร์"], "리프팅": ["리프팅", "슈링크", "처짐", "ยกกระชับ"], "스킨부스터": ["스킨부스터", "물광", "건조", "ผิวแห้ง", "สกินบูสเตอร์"], "레이저": ["레이저", "피코", "색소", "흉터", "여드름", "เลเซอร์", "ฝ้า", "สิว"]}
     found = next((key for key, terms in categories.items() if any(term in message for term in terms)), None)
     if found:
         profile["preferred_service"] = found

@@ -21,7 +21,7 @@
 <body>
   <header><div class="brand">hey<b>beauty</b></div><a class="crm" href="/crm">클리닉 CRM 데모 →</a></header>
   <main>
-    <section class="panel hero"><h1>내 피부 고민을<br>대화로 찾아보세요.</h1><p>AI가 뷰티 정보를 안내하고, 입점 클리닉의 가능한 예약 시간까지 연결해 드려요.</p><div class="chips"><button class="chip" onclick="send('사각턱 보톡스가 궁금해요')">사각턱 보톡스</button><button class="chip" onclick="send('건조한 피부에 추천해줘')">건조한 피부</button><button class="chip" onclick="send('색소 레이저를 알아보고 싶어요')">색소 레이저</button></div></section>
+    <section class="panel hero"><h1>방콕 피부 고민을<br>대화로 찾아보세요.</h1><p>AI가 뷰티 정보를 안내하고, 방콕 입점 클리닉의 가능한 예약 시간까지 연결해 드려요.</p><div class="chips"><button class="chip" onclick="send('사각턱 보톡스가 궁금해요')">사각턱 보톡스</button><button class="chip" onclick="send('ผิวแห้ง แนะนำอะไรดี')">ผิวแห้ง</button><button class="chip" onclick="send('색소 레이저를 알아보고 싶어요')">색소 레이저</button></div></section>
     <section class="panel chat"><div class="messages" id="messages"><div class="bubble ai">안녕하세요, 헤이뷰티예요. 피부 고민이나 관심 있는 시술을 말씀해 주세요. 클리닉 매칭 에이전트가 실제 입점 서비스와 예약 가능한 시간을 바로 연결해 드려요.</div></div><div class="input"><input id="message" placeholder="예: 사각턱 보톡스가 궁금해요" autofocus><button class="send" onclick="send()">보내기</button></div><label class="privacy"><input id="aiConsent" type="checkbox"> 시술 정보 답변을 위해 이 메시지를 OpenAI에 전송하는 데 동의합니다. 연락처와 이름은 전송 전에 제거됩니다.</label></section>
     <section class="panel" style="grid-column:1/-1"><div class="cards"><strong>클리닉 매칭 에이전트 추천</strong><div id="services" class="empty" style="margin-top:12px">관심 시술을 알려주시면 입점 클리닉과 예약 시간을 연결해 드려요.</div></div></section>
   </main>
@@ -40,7 +40,8 @@
         const d=await r.json();add(d.reply,'ai');['name','phone','concern'].forEach(k=>{if(d.profile[k])$(k).value=d.profile[k]});current=d.services;render(d.services);
       }catch(e){add('잠시 문제가 생겼어요. 다시 시도해 주세요.','ai')}
     }
-    function render(items){$('services').innerHTML=items.map((s,i)=>`<div class="service"><h3>${esc(s.clinic_name)} · ${esc(s.name)}</h3><div class="meta">${esc(s.district)} · ${s.category} · ${s.price.toLocaleString()}원 · ${s.duration}</div><button class="book" onclick="openBooking(${i})">예약 시간 보기 →</button></div>`).join('')}
+    function money(service){return new Intl.NumberFormat('th-TH',{style:'currency',currency:service.currency||'THB',maximumFractionDigits:0}).format(service.price)}
+    function render(items){$('services').innerHTML=items.map((s,i)=>`<div class="service"><h3>${esc(s.clinic_name)} · ${esc(s.name)}</h3><div class="meta">${esc(s.district)} · ${s.category} · ${money(s)} · ${s.duration}</div><button class="book" onclick="openBooking(${i})">예약 시간 보기 →</button></div>`).join('')}
     function openBooking(i){const s=current[i];$('serviceId').value=s.id;$('bookingTitle').textContent=s.clinic_name+' 예약 요청';$('slot').innerHTML=s.slots.map(x=>`<option>${x}</option>`).join('');booking.showModal()}
     $('bookingForm').onsubmit=async e=>{e.preventDefault();const data={service_id:+$('serviceId').value,slot:$('slot').value,name:$('name').value,phone:$('phone').value,concern:$('concern').value};const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const d=await r.json();if(!r.ok)return alert(d.error);booking.close();add('✅ '+d.message,'ai')};
     $('message').onkeydown=e=>{if(e.key==='Enter')send()};
