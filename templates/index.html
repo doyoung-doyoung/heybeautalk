@@ -12,7 +12,7 @@
     main{max-width:1100px;margin:30px auto;display:grid;grid-template-columns:1fr 1fr;gap:22px;padding:0 18px}.panel{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}
     .hero{padding:30px;background:linear-gradient(135deg,#fff0f4,#f8f2ff)}h1{font-size:30px;margin:0 0 10px}p{line-height:1.55;color:var(--muted)}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}
     button{cursor:pointer;border:0}.chip{background:#fff;border:1px solid var(--line);border-radius:18px;padding:9px 12px}.chat{height:530px;display:flex;flex-direction:column}.messages{flex:1;overflow:auto;padding:18px}
-    .bubble{max-width:85%;padding:12px 14px;margin:8px 0;border-radius:14px;line-height:1.55;font-size:14px;white-space:pre-wrap}.me{background:#ffe1e9;margin-left:auto}.ai{background:#f5f3f8}
+    .bubble{max-width:85%;padding:12px 14px;margin:8px 0;border-radius:14px;line-height:1.55;font-size:14px;white-space:pre-wrap}.me{background:#ffe1e9;margin-left:auto}.ai{background:#f5f3f8}.suggestions{display:grid;gap:7px;margin:2px 0 14px}.suggestion{text-align:left;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--ink)}.suggestion:last-child{border-color:#ffabc0;background:#fff5f8;color:#b62f54;font-weight:700}
     .input{display:flex;padding:14px;border-top:1px solid var(--line);gap:8px}.input input{flex:1;border:1px solid var(--line);border-radius:22px;padding:12px}.send{background:var(--pink);color:#fff;border-radius:22px;padding:0 18px}
     .privacy{display:block;padding:0 18px 12px;font-size:11px;color:var(--muted);line-height:1.45}.privacy input{vertical-align:middle}.cards{padding:18px}.service{border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:10px}.service h3{margin:0 0 8px;font-size:16px}.meta{color:var(--muted);font-size:13px}.book{margin-top:11px;background:#fff0f4;color:#c83b60;border-radius:15px;padding:8px 12px}
     dialog{border:0;border-radius:18px;box-shadow:0 14px 50px #4b2c3833}.form{width:min(360px,85vw);display:grid;gap:12px}.form h2{margin:0}.form label{font-size:13px}.form input,.form select{display:block;width:100%;border:1px solid var(--line);padding:10px;border-radius:9px;margin-top:5px}.actions{display:flex;justify-content:flex-end;gap:8px;margin-top:5px}.primary,.secondary{padding:10px 14px;border-radius:10px}.primary{background:var(--pink);color:#fff}.secondary{background:#f3f1f4}@media(max-width:720px){main{grid-template-columns:1fr;margin-top:18px}.chat{height:500px}}
@@ -28,18 +28,24 @@
   <dialog id="booking"><form class="form" id="bookingForm"><h2 id="bookingTitle">예약 요청</h2><input type="hidden" id="serviceId"><label>예약자 이름<input id="name" required></label><label>연락처<input id="phone" placeholder="010-0000-0000" required></label><label>피부 고민<input id="concern"></label><label>예약 가능 시간<select id="slot" required></select></label><div class="actions"><button type="button" class="secondary" onclick="booking.close()">취소</button><button class="primary">예약 요청</button></div></form></dialog>
   <script>
     const userId='demo-'+(localStorage.hbUserId||(localStorage.hbUserId=Math.random().toString(36).slice(2)));
-    let current=[];
+    let current=[], infoStep=0;
     const $=id=>document.getElementById(id);
     function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
     function add(text,type){$('messages').insertAdjacentHTML('beforeend',`<div class="bubble ${type}">${esc(text)}</div>`);$('messages').scrollTop=99999}
+    function addSuggestions(items){
+      if(!items?.length)return;
+      const wrap=document.createElement('div');wrap.className='suggestions';
+      items.forEach((q,i)=>{const b=document.createElement('button');b.className='suggestion';b.textContent=`${i+1}. ${q}`;b.onclick=()=>send(q);wrap.appendChild(b)});
+      $('messages').appendChild(wrap);$('messages').scrollTop=99999;
+    }
     async function send(text){
       const input=$('message');text=text||input.value.trim();if(!text)return;
-      add(text,'me');input.value='';
+      add(text,'me');input.value='';infoStep=Math.min(infoStep+1,3);
       try{
-        const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,user_id:userId,allow_ai:$('aiConsent').checked})});
+        const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,user_id:userId,allow_ai:$('aiConsent').checked,info_step:infoStep})});
         const d=await r.json().catch(()=>({}));
         if(!r.ok)throw new Error(d.error||`요청 오류 (${r.status})`);
-        add(d.reply,'ai');['name','phone','concern'].forEach(k=>{if(d.profile[k])$(k).value=d.profile[k]});current=d.services;render(d.services);
+        add(d.reply,'ai');addSuggestions(d.suggested_questions);['name','phone','concern'].forEach(k=>{if(d.profile[k])$(k).value=d.profile[k]});current=d.services;render(d.services);
       }catch(e){add(e.message||'채팅 연결에 실패했어요. 다시 시도해 주세요.','ai')}
     }
     function money(service){return new Intl.NumberFormat('th-TH',{style:'currency',currency:service.currency||'THB',maximumFractionDigits:0}).format(service.price)}
