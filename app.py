@@ -12,10 +12,12 @@ from flask import Flask, jsonify, render_template, request
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
+SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
+CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_KEY)
 if CLOUD_MODE:
     from supabase import create_client
-    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 app = Flask(__name__)
 DATABASE = os.path.join(app.root_path, "heybeauty.db")
