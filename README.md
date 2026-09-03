@@ -22,3 +22,7 @@ production database, apply `supabase/migrations/20260903_initial.sql` in the
 Supabase SQL Editor, then configure the Supabase and OpenAI values listed in
 `.env.example` as Vercel environment variables. Do not expose service-role or
 OpenAI keys in browser code.
+
+OpenAI answers are optional: a user must opt in for each message before it is
+sent to OpenAI. The server removes Korean phone numbers and names from that
+message, and makes the API request with response storage disabled.

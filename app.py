@@ -14,10 +14,17 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
 CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_KEY)
 if CLOUD_MODE:
     from supabase import create_client
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+if OPENAI_API_KEY:
+    from openai import OpenAI
+    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+else:
+    openai_client = None
 
 app = Flask(__name__)
 DATABASE = os.path.join(app.root_path, "heybeauty.db")
@@ -108,6 +115,35 @@ def flatten_service(service, include_rating=False):
     return service
 
 
+def beauty_ai_answer(message, profile, services):
+    """Generates an opted-in answer without sending phone numbers or names."""
+    if not openai_client:
+        return None
+    safe_message = re.sub(r"01[0-9][-\s]?\d{3,4}[-\s]?\d{4}", "[연락처 삭제]", message)
+    safe_message = re.sub(r"((?:저는|이름은)\s*)[가-힣]{2,4}", r"\1[이름 삭제]", safe_message)
+    catalog = "; ".join(
+        f"{item['clinic_name']} / {item['name']} / {item['price']:,}원"
+        for item in services
+    )
+    instructions = (
+        "당신은 HeyBeauty의 한국어 뷰티 정보 안내 AI입니다. 시술의 일반적 목적, "
+        "기대할 수 있는 점, 흔한 주의사항을 3~5문장으로 친절하고 간결하게 설명하세요. "
+        "진단·처방·효과 보장은 하지 말고, 임신·수유·질환·복용약 또는 개인 피부 상태는 "
+        "의료진 상담이 필요하다고 안내하세요. 사용자가 예약을 원하면 아래 실제 입점 서비스만 "
+        "언급하세요. 가격·가능 시간은 임의로 만들지 마세요.\n\n"
+        f"사용자 관심 시술: {profile.get('preferred_service') or '미확인'}\n"
+        f"추천 가능한 실제 서비스: {catalog}"
+    )
+    response = openai_client.responses.create(
+        model=OPENAI_MODEL,
+        instructions=instructions,
+        input=safe_message,
+        max_output_tokens=350,
+        store=False,
+    )
+    return response.output_text.strip()
+
+
 def save_chat_profile(user_id, message):
     if CLOUD_MODE:
         result = supabase.table("chat_profiles").select("*").eq("user_id", user_id).execute().data
@@ -178,6 +214,7 @@ def clinics():
 def chat():
     data = request.get_json() or {}
     message, user_id = data.get("message", "").strip(), data.get("user_id", "demo-user")
+    allow_ai = bool(data.get("allow_ai"))
     if not message: return jsonify({"reply": "메시지를 입력해 주세요.", "profile": {}}), 400
     profile = save_chat_profile(user_id, message)
     query = profile.get("preferred_service") or ""
@@ -196,6 +233,11 @@ def chat():
         for service in services: service["slots"] = service_slots(service)
     detail = f"‘{query}’ 관련으로 " if query else ""
     reply = detail + "맞춤 클리닉을 골랐어요. 시술 전에는 의료진과 피부 상태·부작용을 꼭 상담해 주세요. 아래 서비스에서 예약을 선택하면, 채팅에서 알려주신 정보가 자동으로 채워집니다."
+    if allow_ai:
+        try:
+            reply = beauty_ai_answer(message, profile, services) or reply
+        except Exception:
+            app.logger.exception("OpenAI beauty answer failed")
     return jsonify({"reply": reply, "profile": profile, "services": services})
 
 
