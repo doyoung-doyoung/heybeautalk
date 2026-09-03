@@ -10,6 +10,13 @@ if os.path.isdir(vendor_path):
 
 from flask import Flask, jsonify, render_template, request
 
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY)
+if CLOUD_MODE:
+    from supabase import create_client
+    supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
 app = Flask(__name__)
 DATABASE = os.path.join(app.root_path, "heybeauty.db")
 
@@ -25,6 +32,8 @@ def rows(cursor):
 
 
 def init_db():
+    if CLOUD_MODE:
+        return
     connection = db()
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS clinics (
@@ -82,9 +91,28 @@ def init_db():
     connection.close()
 
 
+def service_slots(service):
+    value = service.get("slots", [])
+    return value.split(",") if isinstance(value, str) else value
+
+
+def flatten_service(service, include_rating=False):
+    clinic = service.pop("clinics", {}) or {}
+    service["clinic_name"] = clinic.get("name", "클리닉")
+    service["district"] = clinic.get("district", "")
+    if include_rating:
+        service["rating"] = clinic.get("rating")
+    service["slots"] = service_slots(service)
+    return service
+
+
 def save_chat_profile(user_id, message):
-    connection = db()
-    old = connection.execute("SELECT * FROM chat_profiles WHERE user_id=?", (user_id,)).fetchone()
+    if CLOUD_MODE:
+        result = supabase.table("chat_profiles").select("*").eq("user_id", user_id).execute().data
+        old = result[0] if result else None
+    else:
+        connection = db()
+        old = connection.execute("SELECT * FROM chat_profiles WHERE user_id=?", (user_id,)).fetchone()
     profile = dict(old) if old else {"name": None, "phone": None, "concern": None, "preferred_service": None}
     phone = re.search(r"01[0-9][-\s]?\d{3,4}[-\s]?\d{4}", message)
     name = re.search(r"(?:저는|이름은)\s*([가-힣]{2,4})", message)
@@ -99,11 +127,14 @@ def save_chat_profile(user_id, message):
     concerns = [term for term in ["턱 라인", "주름", "건조", "색소", "흉터", "여드름", "처짐"] if term in message]
     if concerns:
         profile["concern"] = ", ".join(concerns)
-    connection.execute("""INSERT INTO chat_profiles(user_id,name,phone,concern,preferred_service,updated_at)
-      VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,phone=excluded.phone,
-      concern=excluded.concern,preferred_service=excluded.preferred_service,updated_at=excluded.updated_at""",
-      (user_id, profile["name"], profile["phone"], profile["concern"], profile["preferred_service"], datetime.now().isoformat(timespec="seconds")))
-    connection.commit(); connection.close()
+    payload = {"user_id": user_id, "name": profile["name"], "phone": profile["phone"], "concern": profile["concern"], "preferred_service": profile["preferred_service"], "updated_at": datetime.now().isoformat(timespec="seconds")}
+    if CLOUD_MODE:
+        supabase.table("chat_profiles").upsert(payload).execute()
+    else:
+        connection.execute("""INSERT INTO chat_profiles(user_id,name,phone,concern,preferred_service,updated_at)
+          VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,phone=excluded.phone,
+          concern=excluded.concern,preferred_service=excluded.preferred_service,updated_at=excluded.updated_at""", tuple(payload.values()))
+        connection.commit(); connection.close()
     return profile
 
 
@@ -119,11 +150,14 @@ def crm():
 
 @app.get("/api/clinics")
 def clinics():
+    if CLOUD_MODE:
+        result = supabase.table("services").select("*, clinics(name,district,rating)").eq("is_active", True).order("clinic_id").execute().data
+        return jsonify([flatten_service(item, include_rating=True) for item in result])
     connection = db()
     result = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district, c.rating FROM services s
       JOIN clinics c ON c.id=s.clinic_id ORDER BY c.id, s.id"""))
     connection.close()
-    for service in result: service["slots"] = service["slots"].split(",")
+    for service in result: service["slots"] = service_slots(service)
     return jsonify(result)
 
 
@@ -133,13 +167,20 @@ def chat():
     message, user_id = data.get("message", "").strip(), data.get("user_id", "demo-user")
     if not message: return jsonify({"reply": "메시지를 입력해 주세요.", "profile": {}}), 400
     profile = save_chat_profile(user_id, message)
-    connection = db()
     query = profile.get("preferred_service") or ""
-    services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
-      JOIN clinics c ON c.id=s.clinic_id WHERE s.category=? OR s.name LIKE ? LIMIT 3""", (query, f"%{query}%")))
-    if not services: services = rows(connection.execute("SELECT s.*, c.name clinic_name, c.district FROM services s JOIN clinics c ON c.id=s.clinic_id LIMIT 3"))
-    connection.close()
-    for service in services: service["slots"] = service["slots"].split(",")
+    if CLOUD_MODE:
+        request_query = supabase.table("services").select("*, clinics(name,district)").eq("is_active", True)
+        if query: request_query = request_query.eq("category", query)
+        services = [flatten_service(item) for item in request_query.limit(3).execute().data]
+        if not services:
+            services = [flatten_service(item) for item in supabase.table("services").select("*, clinics(name,district)").eq("is_active", True).limit(3).execute().data]
+    else:
+        connection = db()
+        services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
+          JOIN clinics c ON c.id=s.clinic_id WHERE s.category=? OR s.name LIKE ? LIMIT 3""", (query, f"%{query}%")))
+        if not services: services = rows(connection.execute("SELECT s.*, c.name clinic_name, c.district FROM services s JOIN clinics c ON c.id=s.clinic_id LIMIT 3"))
+        connection.close()
+        for service in services: service["slots"] = service_slots(service)
     detail = f"‘{query}’ 관련으로 " if query else ""
     reply = detail + "맞춤 클리닉을 골랐어요. 시술 전에는 의료진과 피부 상태·부작용을 꼭 상담해 주세요. 아래 서비스에서 예약을 선택하면, 채팅에서 알려주신 정보가 자동으로 채워집니다."
     return jsonify({"reply": reply, "profile": profile, "services": services})
@@ -151,25 +192,47 @@ def create_booking():
     required = ["service_id", "slot", "name", "phone"]
     if any(not str(data.get(key, "")).strip() for key in required):
         return jsonify({"error": "예약자 이름, 연락처, 시간은 필수입니다."}), 400
-    connection = db()
-    service = connection.execute("SELECT * FROM services WHERE id=?", (data["service_id"],)).fetchone()
-    if not service or data["slot"] not in service["slots"].split(","):
-        connection.close(); return jsonify({"error": "선택한 예약 시간을 찾을 수 없습니다."}), 400
+    if CLOUD_MODE:
+        service_result = supabase.table("services").select("*").eq("id", data["service_id"]).execute().data
+        service = service_result[0] if service_result else None
+    else:
+        connection = db()
+        service = connection.execute("SELECT * FROM services WHERE id=?", (data["service_id"],)).fetchone()
+    if not service or data["slot"] not in service_slots(service):
+        if not CLOUD_MODE: connection.close()
+        return jsonify({"error": "선택한 예약 시간을 찾을 수 없습니다."}), 400
     now = datetime.now().isoformat(timespec="seconds")
-    customer = connection.execute("SELECT id FROM customers WHERE phone=?", (data["phone"],)).fetchone()
+    if CLOUD_MODE:
+        found = supabase.table("customers").select("id").eq("phone", data["phone"]).limit(1).execute().data
+        customer = found[0] if found else None
+    else:
+        customer = connection.execute("SELECT id FROM customers WHERE phone=?", (data["phone"],)).fetchone()
     if customer:
         customer_id = customer["id"]
-        connection.execute("UPDATE customers SET name=?, concern=?, preferred_service=? WHERE id=?", (data["name"], data.get("concern", ""), service["name"], customer_id))
+        if CLOUD_MODE: supabase.table("customers").update({"name": data["name"], "concern": data.get("concern", ""), "preferred_service": service["name"]}).eq("id", customer_id).execute()
+        else: connection.execute("UPDATE customers SET name=?, concern=?, preferred_service=? WHERE id=?", (data["name"], data.get("concern", ""), service["name"], customer_id))
     else:
-        customer_id = connection.execute("INSERT INTO customers(name,phone,concern,preferred_service,notes,created_at) VALUES(?,?,?,?,?,?)", (data["name"], data["phone"], data.get("concern", ""), service["name"], "채팅 예약으로 생성", now)).lastrowid
-    appointment_id = connection.execute("INSERT INTO appointments(clinic_id,service_id,customer_id,slot,status,source,created_at) VALUES(?,?,?,?,?,?,?)", (service["clinic_id"], service["id"], customer_id, data["slot"], "상담대기", "HeyBeauty 채팅", now)).lastrowid
-    connection.commit(); connection.close()
+        if CLOUD_MODE:
+            customer_id = supabase.table("customers").insert({"name": data["name"], "phone": data["phone"], "concern": data.get("concern", ""), "preferred_service": service["name"], "notes": "채팅 예약으로 생성"}).execute().data[0]["id"]
+        else: customer_id = connection.execute("INSERT INTO customers(name,phone,concern,preferred_service,notes,created_at) VALUES(?,?,?,?,?,?)", (data["name"], data["phone"], data.get("concern", ""), service["name"], "채팅 예약으로 생성", now)).lastrowid
+    if CLOUD_MODE:
+        appointment_id = supabase.table("appointments").insert({"clinic_id": service["clinic_id"], "service_id": service["id"], "customer_id": customer_id, "slot": data["slot"], "status": "상담대기", "source": "HeyBeauty 채팅"}).execute().data[0]["id"]
+    else:
+        appointment_id = connection.execute("INSERT INTO appointments(clinic_id,service_id,customer_id,slot,status,source,created_at) VALUES(?,?,?,?,?,?,?)", (service["clinic_id"], service["id"], customer_id, data["slot"], "상담대기", "HeyBeauty 채팅", now)).lastrowid
+        connection.commit(); connection.close()
     return jsonify({"id": appointment_id, "message": "예약 요청이 접수되었습니다. 클리닉에서 확인 후 연락드립니다."}), 201
 
 
 @app.get("/api/crm")
 def crm_data():
     clinic_id = request.args.get("clinic_id", 1, type=int)
+    if CLOUD_MODE:
+        clinic_rows = supabase.table("clinics").select("*").eq("id", clinic_id).execute().data
+        appointment_rows = supabase.table("appointments").select("*, customers(name,phone,concern,notes), services(name)").eq("clinic_id", clinic_id).order("slot").execute().data
+        for item in appointment_rows:
+            customer, service = item.pop("customers", {}) or {}, item.pop("services", {}) or {}
+            item.update({"customer_name": customer.get("name"), "phone": customer.get("phone"), "concern": customer.get("concern"), "notes": customer.get("notes"), "service_name": service.get("name")})
+        return jsonify({"clinic": clinic_rows[0] if clinic_rows else None, "appointments": appointment_rows})
     connection = db()
     clinic = connection.execute("SELECT * FROM clinics WHERE id=?", (clinic_id,)).fetchone()
     appointments = rows(connection.execute("""SELECT a.*, cu.name customer_name, cu.phone, cu.concern, cu.notes,
@@ -184,7 +247,9 @@ def update_appointment(appointment_id):
     status = (request.get_json() or {}).get("status")
     if status not in ["상담대기", "예약확정", "방문완료", "취소"]:
         return jsonify({"error": "올바른 상태를 선택해 주세요."}), 400
-    connection = db(); connection.execute("UPDATE appointments SET status=? WHERE id=?", (status, appointment_id)); connection.commit(); connection.close()
+    if CLOUD_MODE: supabase.table("appointments").update({"status": status}).eq("id", appointment_id).execute()
+    else:
+        connection = db(); connection.execute("UPDATE appointments SET status=? WHERE id=?", (status, appointment_id)); connection.commit(); connection.close()
     return jsonify({"ok": True})
 
 
