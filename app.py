@@ -150,23 +150,56 @@ def beauty_ai_answer(message, profile, services):
     return response.output_text.strip()
 
 
-def clinic_match_reply(category, services):
+def clinic_match_reply(category, services, is_thai=False):
     """Provides a booking-oriented response even when generative AI is disabled."""
     if not category or not services:
         return (
             "피부 고민에 맞는 시술을 찾아볼게요. 보톡스, 필러, 리프팅, 스킨부스터, 레이저 중 "
             "관심 있는 시술이나 고민을 알려주시면 입점 클리닉과 예약 시간을 바로 연결해 드려요."
         )
+    education = {
+        "보톡스": (
+            "보톡스는 특정 근육의 움직임을 일시적으로 줄여 표정 주름이나 턱 근육 관리에 쓰이는 시술이에요. "
+            "멍·붓기·일시적인 비대칭 등이 생길 수 있으니 복용 중인 약, 임신·수유, 질환 여부는 의료진에게 꼭 알려주세요.",
+            "โบท็อกซ์ช่วยลดการขยับของกล้ามเนื้อชั่วคราว จึงมักใช้กับริ้วรอยหรือกล้ามเนื้อกรามได้. "
+            "อาจมีรอยช้ำ บวม หรือความไม่สมมาตรชั่วคราว ควรแจ้งแพทย์หากตั้งครรภ์ ให้นมบุตร มีโรคประจำตัว หรือใช้ยาอยู่.",
+        ),
+        "필러": (
+            "필러는 볼륨이 부족한 부위를 보완하는 데 쓰이며 입술·팔자·볼 등 부위에 따라 상담 방식이 달라져요. "
+            "혈관 관련 위험을 포함한 부작용 가능성이 있어 시술 경험과 상태를 의료진과 충분히 확인해야 해요.",
+            "ฟิลเลอร์ใช้เพื่อเพิ่มวอลลุ่มในบริเวณต่าง ๆ เช่น ริมฝีปาก ร่องแก้ม หรือแก้ม โดยแผนการรักษาจะแตกต่างกันตามตำแหน่ง. "
+            "ควรปรึกษาแพทย์อย่างละเอียดเรื่องประวัติการรักษาและความเสี่ยงก่อนทำ.",
+        ),
+        "리프팅": (
+            "리프팅 시술은 처짐 개선과 탄력 관리를 목적으로 하며, 피부 두께와 처짐 정도에 따라 기대 결과가 달라질 수 있어요. "
+            "개인 피부 상태에 맞는 장비와 강도는 의료진 상담 후 정하는 것이 안전해요.",
+            "หัตถการยกกระชับมุ่งดูแลความหย่อนคล้อยและความกระชับของผิว ผลลัพธ์อาจต่างกันตามสภาพผิว. "
+            "ควรให้แพทย์ประเมินเครื่องมือและระดับพลังงานที่เหมาะกับคุณก่อนทำ.",
+        ),
+        "스킨부스터": (
+            "스킨부스터는 피부 보습과 결 관리에 도움을 주는 시술로, 건조함이나 피부 컨디션에 따라 횟수와 제품 선택이 달라질 수 있어요. "
+            "염증성 피부 상태나 알레르기 이력이 있다면 먼저 의료진에게 알려주세요.",
+            "สกินบูสเตอร์เน้นความชุ่มชื้นและผิวสัมผัส จำนวนครั้งและผลิตภัณฑ์อาจต่างกันตามสภาพผิว. "
+            "หากมีผิวอักเสบหรือประวัติแพ้ ควรแจ้งแพทย์ก่อนทำ.",
+        ),
+        "레이저": (
+            "레이저 시술은 색소·결·흉터 등 고민에 따라 종류와 강도가 달라져요. "
+            "시술 후 자외선 차단과 피부 자극 관리가 중요하며, 현재 피부 상태는 의료진 상담으로 확인해야 해요.",
+            "เลเซอร์มีชนิดและระดับพลังงานต่างกันตามปัญหาผิว เช่น เม็ดสี รอยสิว หรือผิวสัมผัส. "
+            "การป้องกันแดดและการดูแลผิวหลังทำสำคัญ ควรให้แพทย์ประเมินสภาพผิวก่อน.",
+        ),
+    }
     match = services[0]
     price = f"฿{match['price']:,}" if match.get("currency") == "THB" else f"{match['price']:,}원"
-    if re.search(r"[ก-๙]", category):
+    info_ko, info_th = education.get(category, ("시술 전 의료진과 개인 피부 상태를 상담해 주세요.", "ควรปรึกษาแพทย์เกี่ยวกับสภาพผิวของคุณก่อนทำหัตถการ."))
+    if is_thai:
         return (
-            f"คุณสนใจ {category} ใช่ไหม? {match['district']}의 {match['clinic_name']}에서 "
+            f"{info_th}\n\nคุณสนใจ {category} ใช่ไหม? {match['district']}의 {match['clinic_name']}에서 "
             f"‘{match['name']}’ 서비스를 {price}에 안내하고 있어요. 아래 예약 버튼을 눌러 "
             "가능한 시간을 확인하고 예약 요청을 진행할 수 있어요."
         )
     return (
-        f"{category}에 관심이 있으시군요. {match['district']}의 {match['clinic_name']}에서 "
+        f"{info_ko}\n\n{category}에 관심이 있으시군요. {match['district']}의 {match['clinic_name']}에서 "
         f"‘{match['name']}’ 서비스를 {price}에 안내하고 있어요. "
         f"아래 ‘예약 시간 보기’를 누르면 가능한 시간을 확인하고 바로 예약 요청할 수 있어요. "
         "시술 전에는 의료진과 피부 상태·부작용을 꼭 상담해 주세요."
@@ -261,7 +294,7 @@ def chat():
         if not services: services = rows(connection.execute("SELECT s.*, c.name clinic_name, c.district FROM services s JOIN clinics c ON c.id=s.clinic_id LIMIT 3"))
         connection.close()
         for service in services: service["slots"] = service_slots(service)
-    reply = clinic_match_reply(query, services)
+    reply = clinic_match_reply(query, services, is_thai=bool(re.search(r"[ก-๙]", message)))
     if allow_ai:
         try:
             reply = beauty_ai_answer(message, profile, services) or reply
