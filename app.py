@@ -22,7 +22,7 @@ if CLOUD_MODE:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 if OPENAI_API_KEY:
     from openai import OpenAI
-    openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    openai_client = OpenAI(api_key=OPENAI_API_KEY, timeout=10.0, max_retries=0)
 else:
     openai_client = None
 
@@ -114,6 +114,11 @@ def flatten_service(service, include_rating=False):
     service["currency"] = service.get("currency", "THB")
     service["slots"] = service_slots(service)
     return service
+
+
+def detect_category(message):
+    categories = {"보톡스": ["보톡스", "사각턱", "주름", "โบท็อกซ์", "โบท๊อก", "โบทอก", "โบกราม"], "필러": ["필러", "입술", "볼륨", "ฟิลเลอร์"], "리프팅": ["리프팅", "슈링크", "처짐", "ยกกระชับ"], "스킨부스터": ["스킨부스터", "물광", "건조", "ผิวแห้ง", "สกินบูสเตอร์"], "레이저": ["레이저", "피코", "색소", "흉터", "여드름", "เลเซอร์", "ฝ้า", "สิว"]}
+    return next((key for key, terms in categories.items() if any(term in message for term in terms)), None)
 
 
 def beauty_ai_answer(message, profile, services, info_step=1, is_thai=False):
@@ -335,8 +340,7 @@ def save_chat_profile(user_id, message):
         profile["phone"] = re.sub(r"\s", "", phone.group())
     if name:
         profile["name"] = name.group(1)
-    categories = {"보톡스": ["보톡스", "사각턱", "주름", "โบท็อกซ์", "โบท๊อก", "โบทอก", "โบกราม"], "필러": ["필러", "입술", "볼륨", "ฟิลเลอร์"], "리프팅": ["리프팅", "슈링크", "처짐", "ยกกระชับ"], "스킨부스터": ["스킨부스터", "물광", "건조", "ผิวแห้ง", "สกินบูสเตอร์"], "레이저": ["레이저", "피코", "색소", "흉터", "여드름", "เลเซอร์", "ฝ้า", "สิว"]}
-    found = next((key for key, terms in categories.items() if any(term in message for term in terms)), None)
+    found = detect_category(message)
     if found:
         profile["preferred_service"] = found
     concerns = [term for term in ["턱 라인", "주름", "건조", "색소", "흉터", "여드름", "처짐"] if term in message]
@@ -398,28 +402,36 @@ def chat():
     except (TypeError, ValueError):
         info_step = 1
     if not message: return jsonify({"reply": "메시지를 입력해 주세요.", "profile": {}}), 400
-    profile = save_chat_profile(user_id, message)
-    query = profile.get("preferred_service") or ""
+    try:
+        profile = save_chat_profile(user_id, message)
+    except Exception:
+        app.logger.exception("Chat profile storage failed")
+        profile = {"name": None, "phone": None, "concern": None, "preferred_service": detect_category(message)}
+    query = profile.get("preferred_service") or detect_category(message) or ""
     is_thai = bool(re.search(r"[ก-๙]", message))
     lowered = message.lower()
     clinic_intent = any(term in lowered for term in ("클리닉", "병원", "예약", "가까운", "คลินิก", "จอง", "ใกล้ฉัน"))
-    if CLOUD_MODE:
-        request_query = supabase.table("services").select("*, clinics(name,district)").eq("is_active", True)
-        if query and not clinic_intent: request_query = request_query.eq("category", query)
-        services = [flatten_service(item) for item in request_query.limit(20 if clinic_intent else 3).execute().data]
-        if not services:
-            services = [flatten_service(item) for item in supabase.table("services").select("*, clinics(name,district)").eq("is_active", True).limit(3).execute().data]
-    else:
-        connection = db()
-        if clinic_intent:
-            services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
-              JOIN clinics c ON c.id=s.clinic_id WHERE s.is_active=1 LIMIT 20"""))
+    services = []
+    try:
+        if CLOUD_MODE:
+            request_query = supabase.table("services").select("*, clinics(name,district)").eq("is_active", True)
+            if query and not clinic_intent: request_query = request_query.eq("category", query)
+            services = [flatten_service(item) for item in request_query.limit(20 if clinic_intent else 3).execute().data]
+            if not services:
+                services = [flatten_service(item) for item in supabase.table("services").select("*, clinics(name,district)").eq("is_active", True).limit(3).execute().data]
         else:
-            services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
-              JOIN clinics c ON c.id=s.clinic_id WHERE s.category=? OR s.name LIKE ? LIMIT 3""", (query, f"%{query}%")))
-        if not services: services = rows(connection.execute("SELECT s.*, c.name clinic_name, c.district FROM services s JOIN clinics c ON c.id=s.clinic_id LIMIT 3"))
-        connection.close()
-        for service in services: service["slots"] = service_slots(service)
+            connection = db()
+            if clinic_intent:
+                services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
+                  JOIN clinics c ON c.id=s.clinic_id WHERE s.is_active=1 LIMIT 20"""))
+            else:
+                services = rows(connection.execute("""SELECT s.*, c.name clinic_name, c.district FROM services s
+                  JOIN clinics c ON c.id=s.clinic_id WHERE s.category=? OR s.name LIKE ? LIMIT 3""", (query, f"%{query}%")))
+            if not services: services = rows(connection.execute("SELECT s.*, c.name clinic_name, c.district FROM services s JOIN clinics c ON c.id=s.clinic_id LIMIT 3"))
+            connection.close()
+            for service in services: service["slots"] = service_slots(service)
+    except Exception:
+        app.logger.exception("Clinic catalog lookup failed")
     reply = fallback_beauty_answer(query, message=message, services=services, is_thai=is_thai)
     if allow_ai:
         try:
