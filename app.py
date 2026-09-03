@@ -15,7 +15,7 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
 CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_KEY)
 if CLOUD_MODE:
     from supabase import create_client
@@ -129,8 +129,9 @@ def beauty_ai_answer(message, profile, services):
         "당신은 HeyBeauty의 한국어 뷰티 정보 안내 AI입니다. 시술의 일반적 목적, "
         "기대할 수 있는 점, 흔한 주의사항을 3~5문장으로 친절하고 간결하게 설명하세요. "
         "진단·처방·효과 보장은 하지 말고, 임신·수유·질환·복용약 또는 개인 피부 상태는 "
-        "의료진 상담이 필요하다고 안내하세요. 사용자가 예약을 원하면 아래 실제 입점 서비스만 "
-        "언급하세요. 가격·가능 시간은 임의로 만들지 마세요.\n\n"
+        "의료진 상담이 필요하다고 안내하세요. 사용자가 특정 시술에 관심을 보이면 아래 실제 "
+        "입점 클리닉 중 한 곳을 클리닉명·서비스명·가격·지역과 함께 소개하고, 예약 버튼을 "
+        "누르도록 자연스럽게 안내하세요. 가격·가능 시간은 임의로 만들지 마세요.\n\n"
         f"사용자 관심 시술: {profile.get('preferred_service') or '미확인'}\n"
         f"추천 가능한 실제 서비스: {catalog}"
     )
@@ -142,6 +143,22 @@ def beauty_ai_answer(message, profile, services):
         store=False,
     )
     return response.output_text.strip()
+
+
+def clinic_match_reply(category, services):
+    """Provides a booking-oriented response even when generative AI is disabled."""
+    if not category or not services:
+        return (
+            "피부 고민에 맞는 시술을 찾아볼게요. 보톡스, 필러, 리프팅, 스킨부스터, 레이저 중 "
+            "관심 있는 시술이나 고민을 알려주시면 입점 클리닉과 예약 시간을 바로 연결해 드려요."
+        )
+    match = services[0]
+    return (
+        f"{category}에 관심이 있으시군요. {match['district']}의 {match['clinic_name']}에서 "
+        f"‘{match['name']}’ 서비스를 {match['price']:,}원에 안내하고 있어요. "
+        f"아래 ‘예약 시간 보기’를 누르면 가능한 시간을 확인하고 바로 예약 요청할 수 있어요. "
+        "시술 전에는 의료진과 피부 상태·부작용을 꼭 상담해 주세요."
+    )
 
 
 def save_chat_profile(user_id, message):
@@ -231,14 +248,16 @@ def chat():
         if not services: services = rows(connection.execute("SELECT s.*, c.name clinic_name, c.district FROM services s JOIN clinics c ON c.id=s.clinic_id LIMIT 3"))
         connection.close()
         for service in services: service["slots"] = service_slots(service)
-    detail = f"‘{query}’ 관련으로 " if query else ""
-    reply = detail + "맞춤 클리닉을 골랐어요. 시술 전에는 의료진과 피부 상태·부작용을 꼭 상담해 주세요. 아래 서비스에서 예약을 선택하면, 채팅에서 알려주신 정보가 자동으로 채워집니다."
+    reply = clinic_match_reply(query, services)
     if allow_ai:
         try:
             reply = beauty_ai_answer(message, profile, services) or reply
         except Exception:
             app.logger.exception("OpenAI beauty answer failed")
-    return jsonify({"reply": reply, "profile": profile, "services": services})
+    lead = {"interested": bool(query), "category": query}
+    if services:
+        lead.update({"clinic_name": services[0]["clinic_name"], "service_name": services[0]["name"]})
+    return jsonify({"reply": reply, "profile": profile, "services": services, "lead": lead})
 
 
 @app.post("/api/bookings")
