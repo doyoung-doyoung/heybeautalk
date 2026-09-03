@@ -239,6 +239,7 @@ def clinics():
     return jsonify(result)
 
 
+@app.post("/chat")
 @app.post("/api/chat")
 def chat():
     data = request.get_json() or {}
@@ -272,6 +273,7 @@ def chat():
     return jsonify({"reply": reply, "profile": profile, "services": services, "lead": lead})
 
 
+@app.post("/bookings")
 @app.post("/api/bookings")
 def create_booking():
     data = request.get_json() or {}

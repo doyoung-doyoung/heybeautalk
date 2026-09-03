@@ -36,14 +36,16 @@
       const input=$('message');text=text||input.value.trim();if(!text)return;
       add(text,'me');input.value='';
       try{
-        const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,user_id:userId,allow_ai:$('aiConsent').checked})});
-        const d=await r.json();add(d.reply,'ai');['name','phone','concern'].forEach(k=>{if(d.profile[k])$(k).value=d.profile[k]});current=d.services;render(d.services);
-      }catch(e){add('잠시 문제가 생겼어요. 다시 시도해 주세요.','ai')}
+        const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,user_id:userId,allow_ai:$('aiConsent').checked})});
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok)throw new Error(d.error||`요청 오류 (${r.status})`);
+        add(d.reply,'ai');['name','phone','concern'].forEach(k=>{if(d.profile[k])$(k).value=d.profile[k]});current=d.services;render(d.services);
+      }catch(e){add(e.message||'채팅 연결에 실패했어요. 다시 시도해 주세요.','ai')}
     }
     function money(service){return new Intl.NumberFormat('th-TH',{style:'currency',currency:service.currency||'THB',maximumFractionDigits:0}).format(service.price)}
     function render(items){$('services').innerHTML=items.map((s,i)=>`<div class="service"><h3>${esc(s.clinic_name)} · ${esc(s.name)}</h3><div class="meta">${esc(s.district)} · ${s.category} · ${money(s)} · ${s.duration}</div><button class="book" onclick="openBooking(${i})">예약 시간 보기 →</button></div>`).join('')}
     function openBooking(i){const s=current[i];$('serviceId').value=s.id;$('bookingTitle').textContent=s.clinic_name+' 예약 요청';$('slot').innerHTML=s.slots.map(x=>`<option>${x}</option>`).join('');booking.showModal()}
-    $('bookingForm').onsubmit=async e=>{e.preventDefault();const data={service_id:+$('serviceId').value,slot:$('slot').value,name:$('name').value,phone:$('phone').value,concern:$('concern').value};const r=await fetch('/api/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const d=await r.json();if(!r.ok)return alert(d.error);booking.close();add('✅ '+d.message,'ai')};
+    $('bookingForm').onsubmit=async e=>{e.preventDefault();const data={service_id:+$('serviceId').value,slot:$('slot').value,name:$('name').value,phone:$('phone').value,concern:$('concern').value};const r=await fetch('/bookings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const d=await r.json().catch(()=>({}));if(!r.ok)return alert(d.error||`예약 요청 오류 (${r.status})`);booking.close();add('✅ '+d.message,'ai')};
     $('message').onkeydown=e=>{if(e.key==='Enter')send()};
   </script>
 </body>
