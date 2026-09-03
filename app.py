@@ -15,7 +15,7 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6")
 CLOUD_MODE = bool(SUPABASE_URL and SUPABASE_KEY)
 if CLOUD_MODE:
     from supabase import create_client
